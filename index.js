@@ -35,7 +35,7 @@ class SteamGifts {
     
     handlePage() {
         if (!this.page) {
-            reset();
+            this.reset();
             return Promise.reject(null);
         }
 
@@ -56,7 +56,7 @@ class SteamGifts {
 
                     const gamesToEnter = Array.from(this.gameFilterGenerator(pinnedGameListWithReviews, gameListWithReviews, pointsLeft));
                     if (gameListWithReviews.length > 0 && gamesToEnter.length === 0) {
-                        reset();
+                        this.reset();
                         throw "No more giveaways";
                     }
                     return this.enterGiveAways(gamesToEnter);
