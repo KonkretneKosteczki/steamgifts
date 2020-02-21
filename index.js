@@ -28,9 +28,14 @@ class SteamGifts {
         await this.run();
     }
 
+    reset() {
+        this.page = this.pageToVisit[0];
+        this.pageNr = 0;
+    }
+    
     handlePage() {
         if (!this.page) {
-            this.page = this.pageToVisit[0];
+            reset();
             return Promise.reject(null);
         }
 
@@ -50,9 +55,10 @@ class SteamGifts {
                         gameReviews;
 
                     const gamesToEnter = Array.from(this.gameFilterGenerator(pinnedGameListWithReviews, gameListWithReviews, pointsLeft));
-                    if (gameListWithReviews.length > 0 && gamesToEnter.length === 0)
+                    if (gameListWithReviews.length > 0 && gamesToEnter.length === 0) {
+                        reset();
                         throw "No more giveaways";
-
+                    }
                     return this.enterGiveAways(gamesToEnter);
                 });
         })
