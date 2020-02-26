@@ -51,9 +51,9 @@ class SteamGifts {
                         gameReviews.slice(pinnedGameList.length) :
                         gameReviews;
 
-                    const pinnedGamesToEnter = Array.from(this.gameReviewFilterGenerator(pinnedGameReviews));
+                    const pinnedGamesToEnter = this.gameReviewFilter(pinnedGameReviews);
                     const nonPinnedGamesToEnter = this.page.applyReviewFilter ?
-                        Array.from(this.gameReviewFilterGenerator(nonPinnedGameReviews)) :
+                        this.gameReviewFilter(nonPinnedGameReviews) :
                         nonPinnedGameReviews;
 
                     const gamesToEnter = [...pinnedGamesToEnter, ...nonPinnedGamesToEnter];
@@ -120,12 +120,10 @@ class SteamGifts {
             .catch(() => ({total_reviews: 0})); // game removed or never added to the steam store;
     }
 
-    * gameReviewFilterGenerator(gameList) {
-        for (let i =0; i< gameList.length; i++){
-            const {total_positive, total_reviews} = gameList[i].reviewSummary;
-            if (this.lowerBoundary(total_positive, total_reviews) >= this.positiveReviewsLowerBoundary)
-                yield gameList[i];
-        }
+    gameReviewFilter(gameList) {
+        return gameList.filter(({reviewSummary: {total_positive, total_reviews}}) => {
+            return this.lowerBoundary(total_positive, total_reviews) >= this.positiveReviewsLowerBoundary;
+        });
     }
 
     * gamePointsFilterGenerator(allGames, maxPoints) {
