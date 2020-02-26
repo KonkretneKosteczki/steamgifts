@@ -3,33 +3,30 @@ const cheerio = require("cheerio");
 const {URLSearchParams} = require("url");
 const pLimit = require("p-limit");
 const {lowerBoundConfidence} = require("./lower-boundary");
-
+const config = require("./config");
 const wait = (ms) => new Promise(res => setTimeout(res, ms));
 
 class SteamGifts {
-    constructor(positiveReviewsLowerBoundary, sessionId, concurrency = 5, reviewLowerBoundaryConfidence=0.95) {
+    constructor({positiveReviewsLowerBoundary, sessionId, xsrfToken, concurrency, reviewLowerBoundaryConfidence, waitTime}) {
         this.positiveReviewsLowerBoundary = positiveReviewsLowerBoundary;
         this.headers = {cookie: "PHPSESSID=" + sessionId};
+        this.xsrfToken = xsrfToken;
         this.pageNr = 0;
-        this.pageToVisit = [
-            {url: "https://www.steamgifts.com/giveaways/search?type=wishlist&page=", applyReviewFilter: false},
-            {url: "https://www.steamgifts.com/giveaways/search?type=recommended&page=", applyReviewFilter: true},
-            {url: "https://www.steamgifts.com/giveaways/search?page=", applyReviewFilter: true},
-        ];
-        this.page = this.pageToVisit[0];
-        this.limit = pLimit(concurrency)
+        this.pagesToVisit = config.pagesToVisit;
+        this.page = this.pagesToVisit[0];
+        this.limit = pLimit(concurrency);
         this.lowerBoundary = lowerBoundConfidence(reviewLowerBoundaryConfidence)
+        this.waitTime = waitTime
     }
 
     async run() {
-        while (await this.handlePage().catch(console.error)) {
-        }
-        await wait(1000 * 60 * 15);
+        while (await this.handlePage().catch(console.error));
+        await wait(this.waitTime);
         await this.run();
     }
 
     reset() {
-        this.page = this.pageToVisit[0];
+        this.page = this.pagesToVisit[0];
         this.pageNr = 0;
     }
 
@@ -44,7 +41,7 @@ class SteamGifts {
 
             if (isLastPage) {
                 this.pageNr = 0;
-                this.page = this.pageToVisit[this.pageToVisit.indexOf(this.page) + 1];
+                this.page = this.pagesToVisit[this.pagesToVisit.indexOf(this.page) + 1];
             }
 
             return this.getReviews([...pinnedGameList, ...gameList])
@@ -146,7 +143,7 @@ class SteamGifts {
 
     enterGiveAway({name, giftId}) {
         const body = new URLSearchParams({
-            xsrf_token: "bd0dec49000166143519a1babd691d7b",
+            xsrf_token: this.xsrfToken,
             do: "entry_insert",
             code: giftId
         });
@@ -158,6 +155,6 @@ class SteamGifts {
 }
 
 
-const sg = new SteamGifts(0.7, "<token here>");
+const sg = new SteamGifts(config);
 
 sg.run();
