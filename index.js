@@ -6,6 +6,10 @@ const {lowerBoundConfidence} = require("./lower-boundary");
 const config = require("./config");
 const wait = (ms) => new Promise(res => setTimeout(res, ms));
 
+const log = console.log;
+const customLogger = (...args) => log(`[${new Date().toISOString()}]:`, ...args);
+console.log = customLogger;
+
 class SteamGifts {
     constructor({positiveReviewsLowerBoundary, sessionId, xsrfToken, concurrency, reviewLowerBoundaryConfidence, waitTime}) {
         this.positiveReviewsLowerBoundary = positiveReviewsLowerBoundary;
@@ -15,12 +19,12 @@ class SteamGifts {
         this.pagesToVisit = config.pagesToVisit;
         this.page = this.pagesToVisit[0];
         this.limit = pLimit(concurrency);
-        this.lowerBoundary = lowerBoundConfidence(reviewLowerBoundaryConfidence)
+        this.lowerBoundary = lowerBoundConfidence(reviewLowerBoundaryConfidence);
         this.waitTime = waitTime
     }
 
     async run() {
-        while (await this.handlePage().catch(console.error));
+        while (await this.handlePage().catch(console.log));
         await wait(this.waitTime);
         await this.run();
     }
@@ -51,9 +55,9 @@ class SteamGifts {
                         gameReviews.slice(pinnedGameList.length) :
                         gameReviews;
 
-                    const pinnedGamesToEnter = this.gameReviewFilter(pinnedGameReviews);
+                    const pinnedGamesToEnter = this.gameReviewFilter(pinnedGameReviews, true);
                     const nonPinnedGamesToEnter = this.page.applyReviewFilter ?
-                        this.gameReviewFilter(nonPinnedGameReviews) :
+                        this.gameReviewFilter(nonPinnedGameReviews, false) :
                         nonPinnedGameReviews;
 
                     const gamesToEnter = [...pinnedGamesToEnter, ...nonPinnedGamesToEnter];
@@ -120,15 +124,26 @@ class SteamGifts {
             .catch(() => ({total_reviews: 0})); // game removed or never added to the steam store;
     }
 
-    gameReviewFilter(gameList) {
-        return gameList.filter(({reviewSummary: {total_positive, total_reviews}}) => {
-            return this.lowerBoundary(total_positive, total_reviews) >= this.positiveReviewsLowerBoundary;
-        });
+    gameReviewFilter(gameList, pinned) {
+        const {accepted, rejected} = gameList.reduce((lists, game) => {
+            const {reviewSummary: {total_positive, total_reviews}} = game;
+            const lowerBoundary = this.lowerBoundary(total_positive, total_reviews).toFixed(2);
+
+            return lowerBoundary >= this.positiveReviewsLowerBoundary ?
+                {accepted: [...lists.accepted, {...game, lowerBoundary}], rejected: lists.rejected} :
+                {rejected: [...lists.rejected, {...game, lowerBoundary}], accepted: lists.accepted};
+        }, {accepted: [], rejected: []});
+
+        if (rejected.length) console.log(`${pinned ? "Pinned ": ""}Rejected - ${rejected.map(this.gameWithBoundary).join(", ")}`);
+        return accepted;
+    }
+
+    gameWithBoundary({name, lowerBoundary}){
+        return `${name}(${lowerBoundary})`
     }
 
     * gamePointsFilterGenerator(allGames, maxPoints) {
-        let points = maxPoints;
-        for (let i =0; i < allGames.length && allGames[i].cost <= points; i++){
+        for (let i =0, points = maxPoints; i < allGames.length && allGames[i].cost <= points; i++){
             points -= allGames[i].cost;
             yield allGames[i];
         }
@@ -139,7 +154,7 @@ class SteamGifts {
     }
 
 
-    enterGiveAway({name, giftId}) {
+    enterGiveAway({giftId, ...gameInfo}) {
         const body = new URLSearchParams({
             xsrf_token: this.xsrfToken,
             do: "entry_insert",
@@ -148,7 +163,7 @@ class SteamGifts {
 
         return fetch("https://www.steamgifts.com/ajax.php", {method: "POST", body, headers: this.headers})
             .then(res => res.json())
-            .then(({type, msg}) => console.log(`${name}: ${msg || type}`));
+            .then(({type, msg}) => console.log(`${this.gameWithBoundary(gameInfo)} - ${msg || type}`));
     }
 }
 
