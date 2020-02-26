@@ -6,8 +6,9 @@ const {lowerBoundConfidence} = require("./lower-boundary");
 const config = require("./config");
 const wait = (ms) => new Promise(res => setTimeout(res, ms));
 
-const log = console.log;
-const customLogger = (...args) => log(`[${new Date().toISOString()}]:`, ...args);
+function customLogger(...args){
+    process.stdout.write(`[${new Date().toISOString()}]: ${args.join(" ")}\n`);
+}
 console.log = customLogger;
 
 class SteamGifts {
@@ -26,6 +27,7 @@ class SteamGifts {
     async run() {
         while (await this.handlePage().catch(console.log));
         await wait(this.waitTime);
+        process.stdout.write("\n");
         await this.run();
     }
 
