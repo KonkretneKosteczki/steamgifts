@@ -12,9 +12,9 @@ class SteamGifts {
         this.headers = {cookie: "PHPSESSID=" + sessionId};
         this.pageNr = 0;
         this.pageToVisit = [
-            "https://www.steamgifts.com/giveaways/search?type=wishlist&page=",
-            "https://www.steamgifts.com/giveaways/search?type=recommended&page=",
-            "https://www.steamgifts.com/giveaways/search?page=",
+            {url: "https://www.steamgifts.com/giveaways/search?type=wishlist&page=", applyReviewFilter: false},
+            {url: "https://www.steamgifts.com/giveaways/search?type=recommended&page=", applyReviewFilter: true},
+            {url: "https://www.steamgifts.com/giveaways/search?page=", applyReviewFilter: true},
         ];
         this.page = this.pageToVisit[0];
         this.limit = pLimit(concurrency)
@@ -44,22 +44,29 @@ class SteamGifts {
 
             return this.getReviews([...pinnedGameList, ...gameList])
                 .then(gameReviews => {
-                    const pinnedGameListWithReviews = gameReviews.slice(0, pinnedGameList.length);
-                    const gameListWithReviews = pinnedGameList.length ?
+                    const pinnedGameReviews = gameReviews.slice(0, pinnedGameList.length);
+                    const nonPinnedGameReviews = pinnedGameList.length ?
                         gameReviews.slice(pinnedGameList.length) :
                         gameReviews;
 
-                    const gamesToEnter = Array.from(this.gameFilterGenerator(pinnedGameListWithReviews, gameListWithReviews, pointsLeft));
-                    if (gameListWithReviews.length > 0 && gamesToEnter.length === 0)
-                        throw "No more giveaways";
+                    const pinnedGamesToEnter = Array.from(this.gameReviewFilterGenerator(pinnedGameReviews));
+                    const nonPinnedGamesToEnter = this.page.applyReviewFilter ?
+                        Array.from(this.gameReviewFilterGenerator(nonPinnedGameReviews)) :
+                        nonPinnedGameReviews;
 
-                    return this.enterGiveAways(gamesToEnter);
+                    const gamesToEnter = [...pinnedGamesToEnter, ...nonPinnedGamesToEnter];
+                    const gamesCanEnter = Array.from(this.gamePointsFilterGenerator(gamesToEnter, pointsLeft));
+
+                    return this.enterGiveAways(gamesCanEnter).then(()=>{
+                        if (gamesToEnter.length > gamesCanEnter.length) throw "Run out of points";
+                        return true;
+                    });
                 });
         })
     }
 
     getPageContent() {
-        const currentUrl = this.page + ++this.pageNr;
+        const currentUrl = this.page.url + ++this.pageNr;
 
         console.log(currentUrl, "Visited.");
         return fetch(currentUrl, {headers: this.headers})
@@ -108,25 +115,21 @@ class SteamGifts {
             .catch(() => ({total_reviews: 0})); // game removed or never added to the steam store;
     }
 
-    * gameFilterGenerator(pinnedGameList, gameList, maxPoints) {
-        // as long as both lists are not empty, generator returning 0 results will mean stopping the queries
+    * gameReviewFilterGenerator(gameList) {
+        for (let i =0; i< gameList.length; i++){
+            const {total_positive, total_reviews} = gameList[i].reviewSummary;
+            if (this.lowerBoundary(total_positive, total_reviews) >= this.positiveReviewsLowerBoundary)
+                yield gameList[i];
+        }
+    }
+
+    * gamePointsFilterGenerator(allGames, maxPoints) {
         let points = maxPoints;
-
-        const allGames = [...pinnedGameList, ...gameList];
-
-        for (let i = 0;
-             i < allGames.length && allGames[i].cost < points && (gameList.length === 0 || gameList[0].cost < points);
-             i++) {
-
-            // ignore games with shitty reviews
-            const {total_positive, total_reviews} = allGames[i].reviewSummary;
-            if (this.lowerBoundary(total_positive, total_reviews) < this.positiveReviewsLowerBoundary) continue;
-
+        for (let i =0; i < allGames.length && allGames[i].cost <= points; i++){
             points -= allGames[i].cost;
             yield allGames[i];
         }
     }
-
 
     enterGiveAways(gameList) {
         return Promise.all(gameList.map(game => this.limit(() => this.enterGiveAway(game))))
