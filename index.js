@@ -28,9 +28,14 @@ class SteamGifts {
         await this.run();
     }
 
+    reset() {
+        this.page = this.pageToVisit[0];
+        this.pageNr = 0;
+    }
+
     handlePage() {
         if (!this.page) {
-            this.page = this.pageToVisit[0];
+            this.reset();
             return Promise.reject(null);
         }
 
@@ -58,8 +63,11 @@ class SteamGifts {
                     const gamesCanEnter = Array.from(this.gamePointsFilterGenerator(gamesToEnter, pointsLeft));
 
                     return this.enterGiveAways(gamesCanEnter).then(()=>{
-                        if (gamesToEnter.length > gamesCanEnter.length) throw "Run out of points";
-                        return true;
+                        if (gamesToEnter.length > gamesCanEnter.length) {
+                            this.reset();
+                            throw "Run out of points";
+                        }
+                        else return true;
                     });
                 });
         })
