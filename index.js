@@ -12,6 +12,8 @@ function customLogger(...args){
 console.log = customLogger;
 
 class SteamGifts {
+    ignoredGames = []; // Previously won
+
     constructor({positiveReviewsLowerBoundary, sessionId, xsrfToken, concurrency, reviewLowerBoundaryConfidence, waitTime}) {
         this.positiveReviewsLowerBoundary = positiveReviewsLowerBoundary;
         this.headers = {cookie: "PHPSESSID=" + sessionId};
@@ -62,7 +64,7 @@ class SteamGifts {
                         this.gameReviewFilter(nonPinnedGameReviews, false) :
                         nonPinnedGameReviews;
 
-                    const gamesToEnter = [...pinnedGamesToEnter, ...nonPinnedGamesToEnter];
+                    const gamesToEnter = [...pinnedGamesToEnter, ...nonPinnedGamesToEnter].filter(game => !this.ignoredGames.includes(game.name));
                     const gamesCanEnter = Array.from(this.gamePointsFilterGenerator(gamesToEnter, pointsLeft));
 
                     return this.enterGiveAways(gamesCanEnter).then(()=>{
@@ -165,7 +167,11 @@ class SteamGifts {
 
         return fetch("https://www.steamgifts.com/ajax.php", {method: "POST", body, headers: this.headers})
             .then(res => res.json())
-            .then(({type, msg}) => console.log(`${this.gameWithBoundary(gameInfo)} - ${msg || type}`));
+            .then(({type, msg}) => {
+                const info = msg || type;
+                if (info.includes("Previously Won")) this.ignoredGames.push(gameInfo.name);
+                console.log(`${this.gameWithBoundary(gameInfo)} - ${info}`)
+            });
     }
 }
 
