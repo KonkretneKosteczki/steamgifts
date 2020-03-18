@@ -13,6 +13,7 @@ console.log = customLogger;
 
 class SteamGifts {
     ignoredGames = []; // Previously won
+    reviewCacheDictionary = {};
 
     constructor({positiveReviewsLowerBoundary, sessionId, xsrfToken, concurrency, reviewLowerBoundaryConfidence, waitTime}) {
         this.positiveReviewsLowerBoundary = positiveReviewsLowerBoundary;
@@ -36,6 +37,7 @@ class SteamGifts {
     reset() {
         this.page = this.pagesToVisit[0];
         this.pageNr = 0;
+        this.reviewCacheDictionary = {};
     }
 
     handlePage() {
@@ -115,9 +117,16 @@ class SteamGifts {
         return Promise.all(gameList.map(game => this.limit(() => {
             // no reviews for game bundles, possible introduce another way of handling
             // for now assume some high positive number to enter
-            if (game.isBundle) return {...game, reviewSummary: {total_positive: 2000, total_reviews: 2000}};
-            else return this.getReviewSummary(game.steamUrl)
-                .then(reviewSummary => ({...game, reviewSummary}))
+            const {name} = game;
+            if (this.reviewCacheDictionary[name]) return this.reviewCacheDictionary[name];
+
+            const review = game.isBundle ?
+                Promise.resolve({...game, reviewSummary: {total_positive: 2000, total_reviews: 2000}}) :
+                this.getReviewSummary(game.steamUrl)
+                    .then(reviewSummary => ({...game, reviewSummary}));
+
+            this.reviewCacheDictionary[name] = review;
+            return review;
         })));
     }
 
