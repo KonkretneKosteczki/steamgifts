@@ -28,11 +28,15 @@ class SteamGifts {
         this.waitTime = waitTime
     }
 
+    // noinspection InfiniteRecursionJS
     async run() {
-        while (await this.handlePage().catch(console.log)) ;
+        while (true) {
+            const shouldContinue = await this.handlePage();
+            if (!shouldContinue) break;
+        }
         await wait(this.waitTime);
         process.stdout.write("\n");
-        await this.run();
+        this.run();
     }
 
     reset() {
@@ -41,44 +45,38 @@ class SteamGifts {
         this.reviewCacheDictionary = {};
     }
 
-    handlePage() {
+    async handlePage() {
         if (!this.page) {
             this.reset();
             return Promise.reject(null);
         }
 
-        return this.getPageContent().then(content => {
-            const {isLastPage, pointsLeft, gameList, pinnedGameList} = this.newParser(content, this.pageNr);
+        const {isLastPage, pointsLeft, gameList, pinnedGameList} = this.newParser(await this.getPageContent(), this.pageNr);
+        const gameReviews = await this.getReviews([...pinnedGameList, ...gameList]);
 
-            return this.getReviews([...pinnedGameList, ...gameList])
-                .then(gameReviews => {
-                    const pinnedGameReviews = gameReviews.slice(0, pinnedGameList.length);
-                    const nonPinnedGameReviews = pinnedGameList.length ?
-                        gameReviews.slice(pinnedGameList.length) :
-                        gameReviews;
+        const pinnedGameReviews = gameReviews.slice(0, pinnedGameList.length);
+        const nonPinnedGameReviews = pinnedGameList.length ?
+            gameReviews.slice(pinnedGameList.length) :
+            gameReviews;
 
-                    const pinnedGamesToEnter = this.gameReviewFilter(pinnedGameReviews, true);
-                    const nonPinnedGamesToEnter = this.page.applyReviewFilter ?
-                        this.gameReviewFilter(nonPinnedGameReviews, false) :
-                        nonPinnedGameReviews;
+        const pinnedGamesToEnter = this.gameReviewFilter(pinnedGameReviews, true);
+        const nonPinnedGamesToEnter = this.page.applyReviewFilter ?
+            this.gameReviewFilter(nonPinnedGameReviews, false) :
+            nonPinnedGameReviews;
 
-                    const gamesToEnter = [...pinnedGamesToEnter, ...nonPinnedGamesToEnter].filter(game => !this.ignoredGames.includes(game.name));
-                    const gamesCanEnter = Array.from(this.gamePointsFilterGenerator(gamesToEnter, pointsLeft));
+        const gamesToEnter = [...pinnedGamesToEnter, ...nonPinnedGamesToEnter].filter(game => !this.ignoredGames.includes(game.name));
+        const gamesCanEnter = Array.from(this.gamePointsFilterGenerator(gamesToEnter, pointsLeft));
 
-                    return this.enterGiveAways(gamesCanEnter).then(() => {
-                        if (gamesToEnter.length > gamesCanEnter.length) {
-                            this.reset();
-                            throw "Run out of points";
-                        } else return true;
-                    });
-                })
-                .then(() => {
-                    if (isLastPage) {
-                        this.pageNr = 0;
-                        this.page = this.pagesToVisit[this.pagesToVisit.indexOf(this.page) + 1];
-                    }
-                });
-        })
+        await this.enterGiveAways(gamesCanEnter);
+        if (gamesToEnter.length > gamesCanEnter.length) {
+            console.log("Run out of points");
+            return this.reset();
+        }
+        if (isLastPage) {
+            this.pageNr = 0;
+            this.page = this.pagesToVisit[this.pagesToVisit.indexOf(this.page) + 1];
+        }
+        return true;
     }
 
     getPageContent() {
@@ -108,7 +106,7 @@ class SteamGifts {
             const giftId = heading.attr("href").match(/(?<=giveaway\/).*?(?=\/)/)[0];
             const cost = parseInt($(this).find(".giveaway__heading__thin").text().match(/[0-9]+(?=P)/)[0]);
             const steamUrl = $(this).find(".giveaway__icon").attr("href").replace("app", "appreviews") + "?json=1&num_per_page=0&purchase_type=all&cursor=*&language=all";
-            const isBundle = steamUrl.startsWith("https://store.steampowered.com/sub/")
+            const isBundle = steamUrl.startsWith("https://store.steampowered.com/sub/");
 
             return {name, giftId, cost, steamUrl, isBundle};
         }
@@ -123,8 +121,7 @@ class SteamGifts {
 
             const review = game.isBundle ?
                 Promise.resolve({...game, reviewSummary: {total_positive: 2000, total_reviews: 2000}}) :
-                this.getReviewSummary(game.steamUrl)
-                    .then(reviewSummary => ({...game, reviewSummary}));
+                this.getReviewSummary(game.steamUrl).then(reviewSummary => ({...game, reviewSummary}));
 
             this.reviewCacheDictionary[name] = review;
             return review;
