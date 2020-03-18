@@ -6,9 +6,10 @@ const {lowerBoundConfidence} = require("./lower-boundary");
 const config = require("./config");
 const wait = (ms) => new Promise(res => setTimeout(res, ms));
 
-function customLogger(...args){
+function customLogger(...args) {
     process.stdout.write(`[${new Date().toISOString()}]: ${args.join(" ")}\n`);
 }
+
 console.log = customLogger;
 
 class SteamGifts {
@@ -28,7 +29,7 @@ class SteamGifts {
     }
 
     async run() {
-        while (await this.handlePage().catch(console.log));
+        while (await this.handlePage().catch(console.log)) ;
         await wait(this.waitTime);
         process.stdout.write("\n");
         await this.run();
@@ -49,11 +50,6 @@ class SteamGifts {
         return this.getPageContent().then(content => {
             const {isLastPage, pointsLeft, gameList, pinnedGameList} = this.newParser(content, this.pageNr);
 
-            if (isLastPage) {
-                this.pageNr = 0;
-                this.page = this.pagesToVisit[this.pagesToVisit.indexOf(this.page) + 1];
-            }
-
             return this.getReviews([...pinnedGameList, ...gameList])
                 .then(gameReviews => {
                     const pinnedGameReviews = gameReviews.slice(0, pinnedGameList.length);
@@ -69,13 +65,18 @@ class SteamGifts {
                     const gamesToEnter = [...pinnedGamesToEnter, ...nonPinnedGamesToEnter].filter(game => !this.ignoredGames.includes(game.name));
                     const gamesCanEnter = Array.from(this.gamePointsFilterGenerator(gamesToEnter, pointsLeft));
 
-                    return this.enterGiveAways(gamesCanEnter).then(()=>{
+                    return this.enterGiveAways(gamesCanEnter).then(() => {
                         if (gamesToEnter.length > gamesCanEnter.length) {
                             this.reset();
                             throw "Run out of points";
-                        }
-                        else return true;
+                        } else return true;
                     });
+                })
+                .then(() => {
+                    if (isLastPage) {
+                        this.pageNr = 0;
+                        this.page = this.pagesToVisit[this.pagesToVisit.indexOf(this.page) + 1];
+                    }
                 });
         })
     }
@@ -147,16 +148,16 @@ class SteamGifts {
                 {rejected: [...lists.rejected, {...game, lowerBoundary}], accepted: lists.accepted};
         }, {accepted: [], rejected: []});
 
-        if (rejected.length) console.log(`${pinned ? "Pinned ": ""}Rejected - ${rejected.map(this.gameWithBoundary).join(", ")}`);
+        if (rejected.length) console.log(`${pinned ? "Pinned " : ""}Rejected - ${rejected.map(this.gameWithBoundary).join(", ")}`);
         return accepted;
     }
 
-    gameWithBoundary({name, lowerBoundary}){
+    gameWithBoundary({name, lowerBoundary}) {
         return `${name}(${lowerBoundary})`
     }
 
     * gamePointsFilterGenerator(allGames, maxPoints) {
-        for (let i =0, points = maxPoints; i < allGames.length && allGames[i].cost <= points; i++){
+        for (let i = 0, points = maxPoints; i < allGames.length && allGames[i].cost <= points; i++) {
             points -= allGames[i].cost;
             yield allGames[i];
         }
