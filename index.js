@@ -22,6 +22,7 @@ class SteamGifts {
         this.xsrfToken = xsrfToken;
         this.pageNr = 0;
         this.pagesToVisit = config.pagesToVisit;
+        this.checkedPinned = false;
         this.page = this.pagesToVisit[0];
         this.limit = pLimit(concurrency);
         this.lowerBoundary = lowerBoundConfidence(reviewLowerBoundaryConfidence);
@@ -43,6 +44,7 @@ class SteamGifts {
         this.page = this.pagesToVisit[0];
         this.pageNr = 0;
         this.reviewCacheDictionary = {};
+        this.checkedPinned = false;
     }
 
     async handlePage() {
@@ -59,7 +61,9 @@ class SteamGifts {
             gameReviews.slice(pinnedGameList.length) :
             gameReviews;
 
-        const pinnedGamesToEnter = this.gameReviewFilter(pinnedGameReviews, true);
+
+        const pinnedGamesToEnter = this.checkedPinned ? [] : this.gameReviewFilter(pinnedGameReviews, true);
+        this.checkedPinned = true;
         const nonPinnedGamesToEnter = this.page.applyReviewFilter ?
             this.gameReviewFilter(nonPinnedGameReviews, false) :
             nonPinnedGameReviews;
@@ -150,7 +154,8 @@ class SteamGifts {
     }
 
     gameWithBoundary({name, lowerBoundary}) {
-        return `${name}(${lowerBoundary})`
+        // no boundary calculated for wishlist games thus ignored
+        return lowerBoundary ? `${name}(${lowerBoundary})` : name;
     }
 
     * gamePointsFilterGenerator(allGames, maxPoints) {
