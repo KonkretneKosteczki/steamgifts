@@ -1,4 +1,4 @@
-module.exports = {
+export const config = {
     // link to the steamgifts api, in theory there should not be a need to manually change it,
     //  but left in config just in case of future implementation modifications
     steamgiftsAPI: "https://www.steamgifts.com/ajax.php",
@@ -16,8 +16,8 @@ module.exports = {
     positiveReviewsLowerBoundary: 0.7,
 
     // your tokens that would allow direct access to steamgifts api
-    sessionId: "<sessionId>",
-    xsrfToken: "<xsrf_token>",
+    sessionId: "a37lc7qujplsdfb8rsogeejdjb22rnednjgfl6bvdo7lq7on" ?? "<sessionId>",
+    xsrfToken: "41b6db3f10bf1e1f0911e34c0408daee" ?? "<xsrf_token>",
 
     // how many concurrent requests should the app perform, it applied to requests to the store to retrieve reviews
     //  as well as to the requests to steamgifts api to enter the giveaways, increasing the value will increase the
@@ -29,4 +29,4 @@ module.exports = {
 
     // delay in milliseconds between application cycles
     waitTime: 1000 * 60 * 15
-};
+} as const;
