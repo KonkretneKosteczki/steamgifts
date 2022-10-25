@@ -23,9 +23,10 @@ export class SteamReviewsService implements ISteamReviewsService {
         const {name} = game;
 
         // One cannot review a game bundle on steam, so bundles are interpreted as games with high positive review count
-        const reviewSummary = this.reviewCacheDictionary[name] ?? game.isBundle
-            ? Promise.resolve({total_positive: 2000, total_reviews: 2000})
-            : this.getReviewSummary(game.steamUrl);
+        const reviewSummary = this.reviewCacheDictionary[name] ?? 
+              (game.isBundle
+                ? Promise.resolve({total_positive: 2000, total_reviews: 2000})
+                : this.getReviewSummary(game.steamUrl));
         this.reviewCacheDictionary[name] = reviewSummary;
         return reviewSummary;
     }
