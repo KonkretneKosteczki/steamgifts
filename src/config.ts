@@ -3,12 +3,14 @@ export const config = {
     //  but left in config just in case of future implementation modifications
     steamgiftsAPI: "https://www.steamgifts.com/ajax.php",
 
-    // order of queries is based on the index of the pagesToVisit, and whether or not reviews are applied to games from
+    // order of queries is based on the index of the pagesToVisit, and whether reviews are applied to game from
     //  particular page as well, the pinned giveaways have review filter applied based on the PinnedGiveaways parameter
     pinnedGiveaways: {applyReviewFilter: true},
     pagesToVisit: [
         {url: "https://www.steamgifts.com/giveaways/search?type=wishlist&page=", applyReviewFilter: false},
+        {url: "https://www.steamgifts.com/giveaways/search?dlc=true&page=", applyReviewFilter: false},
         {url: "https://www.steamgifts.com/giveaways/search?type=recommended&page=", applyReviewFilter: true},
+        {url: "https://www.steamgifts.com/giveaways/search?copy_min=2&page=", applyReviewFilter: true},
         {url: "https://www.steamgifts.com/giveaways/search?page=", applyReviewFilter: true},
     ],
 
