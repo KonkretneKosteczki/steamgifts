@@ -1,4 +1,4 @@
-import {instanceOfObject} from "./object-instance.validator";
+import {instanceOfObject} from "@utils/object-instance.validator";
 import {IAppReview} from "../interfaces";
 
 export function instanceOfIAppReview(data: unknown): data is IAppReview {

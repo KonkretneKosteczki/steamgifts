@@ -55,7 +55,5 @@ export class SteamReviewsService implements ISteamReviewsService {
                 {accepted: [...lists.accepted, {...game, lowerBoundary}], rejected: lists.rejected} :
                 {rejected: [...lists.rejected, {...game, lowerBoundary}], accepted: lists.accepted};
         }, {accepted: [], rejected: []});
-        // if (rejected.length) console.log(`${pinned ? "Pinned " : ""}Rejected - ${rejected.map(this.gameWithBoundary).join(", ")}`);
-        // return accepted;
     }
 }
