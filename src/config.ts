@@ -18,8 +18,8 @@ export const config = {
     positiveReviewsLowerBoundary: 0.7,
 
     // your tokens that would allow direct access to steamgifts api
-    sessionId: "a37lc7qujplsdfb8rsogeejdjb22rnednjgfl6bvdo7lq7on" ?? "<sessionId>",
-    xsrfToken: "41b6db3f10bf1e1f0911e34c0408daee" ?? "<xsrf_token>",
+    sessionId: process.env.SESSION_ID ?? "<sessionId>",
+    xsrfToken: process.env.XSRF_TOKEN ?? "<xsrf_token>",
 
     // how many concurrent requests should the app perform, it applied to requests to the store to retrieve reviews
     //  as well as to the requests to steamgifts api to enter the giveaways, increasing the value will increase the
