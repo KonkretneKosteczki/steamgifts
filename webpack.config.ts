@@ -1,6 +1,10 @@
 import * as path from "path";
+import * as webpack from "webpack";
 
 module.exports = {
+    target: "node",
+    mode: "production",
+    node: false,
     entry: "./src/index.ts",
     output: {
         path: path.resolve(__dirname, "dist"),
@@ -23,7 +27,9 @@ module.exports = {
             "@services/*": path.resolve(__dirname, "./src/services/*")
         },
     },
-    target: "node",
-    mode: "production",
-    node: false,
+    plugins: [
+        new webpack.optimize.LimitChunkCountPlugin({
+            maxChunks: 1 // keep it to one file
+        }),
+    ],
 };
