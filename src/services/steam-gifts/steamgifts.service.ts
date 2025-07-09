@@ -2,7 +2,7 @@ import fetch from "node-fetch"
 import {load as cheerioLoad} from "cheerio";
 import {logger} from "@utils/logger";
 import {URLSearchParams} from "url";
-import pLimit, {Limit as LimitFunction} from "p-limit";
+import pLimit, {LimitFunction} from "p-limit";
 import {waitMs} from "@utils/wait";
 import {ISteamReviewsService} from "../steam-reviews/interfaces";
 import {IParsedPageHeading, IGame, IParsedPage, ISteamgiftsService} from "./interfaces";
