@@ -1,13 +1,23 @@
-import {instanceOfObject} from "@utils/object-instance.validator";
 import {IEntryFailed, IEntrySuccessful} from "../interfaces";
+import * as Joi from "joi";
+import {logger} from "@utils/logger";
+
+const entrySuccessfulSchema = Joi.object<IEntrySuccessful>({
+    entry_count: Joi.string(),
+    points: Joi.string(),
+    type: Joi.string()
+});
 
 export function instanceOfIEntrySuccessful(data: unknown): data is IEntrySuccessful {
-    return instanceOfObject(data)
-        && data.hasOwnProperty("entry_count") && typeof data.entry_count === "string"
-        && data.hasOwnProperty("points") && typeof data.points === "string"
-        && data.hasOwnProperty("type") && typeof data.type === "string"
+    const validationResult = entrySuccessfulSchema.validate(data);
+    if (validationResult.error) logger.error(validationResult.error);
+    return !validationResult.error;
 }
 
+const entryFailedSchema = Joi.object<IEntryFailed>({msg: Joi.string()});
+
 export function instanceOfIEntryFailed(data: unknown): data is IEntryFailed {
-    return instanceOfObject(data) && data.hasOwnProperty("msg") && typeof data.msg === "string";
+    const validationResult = entryFailedSchema.validate(data);
+    if (validationResult.error) logger.error(validationResult.error);
+    return !validationResult.error;
 }
