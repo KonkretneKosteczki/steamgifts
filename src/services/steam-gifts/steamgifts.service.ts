@@ -115,10 +115,12 @@ export class SteamGifts implements ISteamgiftsService {
             const name = heading.text();
             const giftId = heading.attr("href").match(/(?<=giveaway\/).*?(?=\/)/)[0];
             const cost = parseInt($(this).find(".giveaway__heading__thin").text().match(/[0-9]+(?=P)/)[0]);
-            const steamUrl = $(this).find(".giveaway__icon").attr("href").replace("app", "appreviews") + "?json=1&num_per_page=0&purchase_type=all&cursor=*&language=all";
-            const isBundle = steamUrl.startsWith("https://store.steampowered.com/sub/");
+            const steamStorePageUrl = $(this).find(".giveaway__icon").attr("href");
+            const steamReviewApiUrl = steamStorePageUrl.substring(0, steamStorePageUrl.indexOf("?"))
+                .replace("app", "appreviews") + "?json=1&num_per_page=0&purchase_type=all&cursor=*&language=all";
+            const isBundle = steamStorePageUrl.startsWith("https://store.steampowered.com/sub/");
 
-            return {name, giftId, cost, steamUrl, isBundle};
+            return {name, giftId, cost, steamUrl: steamReviewApiUrl, isBundle};
         }
     }
 
