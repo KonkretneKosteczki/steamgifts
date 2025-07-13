@@ -4,9 +4,9 @@ import {logger} from "@utils/logger";
 
 const appReviewSchema = Joi.object<IAppReview>({
     query_summary: Joi.object({
-        total_positive: Joi.number(),
-        total_reviews: Joi.number()
-    }).unknown(true).strip(true)
+        total_positive: Joi.number().required(),
+        total_reviews: Joi.number().required()
+    }).unknown(true).strip(true).required()
 }).unknown(true).strip(true)
 
 export function instanceOfIAppReview(data: unknown): data is IAppReview {

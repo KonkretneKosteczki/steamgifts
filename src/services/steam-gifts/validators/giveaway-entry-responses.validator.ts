@@ -1,25 +1,14 @@
-import {IEntryFailed, IEntrySuccessful} from "../interfaces";
+import type {IEntryResponse} from "../interfaces";
 import * as Joi from "joi";
 import {logger} from "@utils/logger";
 
-const entrySuccessfulSchema = Joi.object<IEntrySuccessful>({
-    entry_count: Joi.string(),
-    points: Joi.string(),
-    type: Joi.string()
-}).unknown(true).strip(true);
-
-export function instanceOfIEntrySuccessful(data: unknown): data is IEntrySuccessful {
-    const validationResult = entrySuccessfulSchema.validate(data);
-    if (validationResult.error) logger.error(validationResult.error);
-    return !validationResult.error;
-}
-
-const entryFailedSchema = Joi.object<IEntryFailed>({
+const entryResponseSchema = Joi.object<IEntryResponse>({
+    type: Joi.string(),
     msg: Joi.string()
-}).unknown(true).strip(true);
+}).unknown(true).strip(true).or("type", "msg");
 
-export function instanceOfIEntryFailed(data: unknown): data is IEntryFailed {
-    const validationResult = entryFailedSchema.validate(data);
+export function instanceOfIEntryResponse(data: unknown): data is IEntryResponse {
+    const validationResult = entryResponseSchema.validate(data);
     if (validationResult.error) logger.error(validationResult.error);
     return !validationResult.error;
 }

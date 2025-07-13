@@ -6,7 +6,7 @@ import pLimit, {LimitFunction} from "p-limit";
 import {waitMs} from "@utils/wait";
 import {ISteamReviewsService} from "../steam-reviews/interfaces";
 import {IParsedPageHeading, IGame, IParsedPage, ISteamgiftsService} from "./interfaces";
-import {instanceOfIEntryFailed, instanceOfIEntrySuccessful} from "./validators";
+import {instanceOfIEntryResponse} from "./validators";
 
 
 export class SteamGifts implements ISteamgiftsService {
@@ -155,12 +155,8 @@ export class SteamGifts implements ISteamgiftsService {
         return fetch("https://www.steamgifts.com/ajax.php", {method: "POST", body, headers: this.headers})
             .then(res => res.json())
             .then((response: unknown) => {
-                const info = instanceOfIEntryFailed(response)
-                    ? response.msg
-                    : instanceOfIEntrySuccessful(response)
-                        ? response.type
-                        : JSON.stringify(response);
-
+                if (!instanceOfIEntryResponse(response)) return;
+                const info = response.type ?? response.msg;
                 if (info.includes("Previously Won")) this.ignoredGames.push(gameInfo.name);
                 logger.log(`${this.gameWithBoundary(gameInfo)} - ${info}`)
             });

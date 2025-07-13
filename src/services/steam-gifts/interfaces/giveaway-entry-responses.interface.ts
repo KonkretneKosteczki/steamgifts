@@ -1,9 +1,9 @@
-export interface IEntrySuccessful {
-    entry_count: `${number}`;
-    points: `${number}`;
+interface IEntrySuccessful {
     type: string;
 }
 
-export interface IEntryFailed {
+interface IEntryFailed {
     msg: string;
 }
+
+export type IEntryResponse = Partial<IEntrySuccessful> & Partial<IEntryFailed>;
