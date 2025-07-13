@@ -2,7 +2,9 @@ Enter giveaways on https://steamgifts.com provided php session id token (can be 
 
 Enters giveaways in order of priority:
 + steam wishlist
++ dlc for already owned games
 + recommended
++ multiple copy giveaways
 + rest
 
 Giveaways with bad user steam reviews (based on Evan Miller's algorithm), no reviews (that includes pre-orders) or removed from the steam store are excluded from the entries, for the recommended and standard search. The wishlist ignores reviews when using basic settings, as your preferences may differ from community's.

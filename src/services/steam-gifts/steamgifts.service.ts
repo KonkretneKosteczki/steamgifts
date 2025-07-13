@@ -2,7 +2,7 @@ import fetch from "node-fetch"
 import {load as cheerioLoad} from "cheerio";
 import {logger} from "@utils/logger";
 import {URLSearchParams} from "url";
-import pLimit, {LimitFunction} from "p-limit";
+import * as pLimit from "p-limit";
 import {waitMs} from "@utils/wait";
 import {ISteamReviewsService} from "../steam-reviews/interfaces";
 import {IParsedPageHeading, IGame, IParsedPage, ISteamgiftsService} from "./interfaces";
@@ -12,7 +12,7 @@ import {instanceOfIEntryResponse} from "./validators";
 export class SteamGifts implements ISteamgiftsService {
     private readonly ignoredGames: Array<string> = []; // Previously won
     private readonly headers: Record<string, string>;
-    private readonly limit: LimitFunction;
+    private readonly limit: pLimit.Limit;
 
     private checkedPinned: boolean = false;
     private pageNr: number = 0;
