@@ -97,31 +97,38 @@ export class SteamGifts implements ISteamgiftsService {
         const currentUrl = this.page.url + ++this.pageNr;
         logger.log(currentUrl, "Visited.");
 
-        const htmlBody = await fetch(currentUrl, {headers: this.headers}).then(res => res.text());
-        const $ = cheerioLoad(htmlBody);
+        return fetch(currentUrl, {headers: this.headers})
+            .then((res) => res.text())
+            .then((htmlBody) => {
+                const $ = cheerioLoad(htmlBody);
 
-        const pinnedGameList = $("div.pinned-giveaways__inner-wrap > div > div:not(.is-faded) > div.giveaway__summary > h2.giveaway__heading")
-            .map(parseHeading).get();
-        const gameList = $("div:not(.pinned-giveaways__inner-wrap) > div > div:not(.is-faded) > div.giveaway__summary > h2.giveaway__heading")
-            .map(parseHeading).get();
-        const isLastPage = !Boolean($(`[data-page-number="${this.pageNr + 1}"]`).length);
-        const pointsLeft = Number($("span.nav__points").text());
+                const pinnedGameList = $("div.pinned-giveaways__inner-wrap > div > div:not(.is-faded) > div.giveaway__summary > h2.giveaway__heading")
+                    .map(parseHeading).get();
+                const gameList = $("div:not(.pinned-giveaways__inner-wrap) > div > div:not(.is-faded) > div.giveaway__summary > h2.giveaway__heading")
+                    .map(parseHeading).get();
+                const isLastPage = !Boolean($(`[data-page-number="${this.pageNr + 1}"]`).length);
+                const pointsLeft = Number($("span.nav__points").text());
 
-        return {gameList, pinnedGameList, isLastPage, pointsLeft};
+                return {gameList, pinnedGameList, isLastPage, pointsLeft};
 
-        function parseHeading(): IParsedPageHeading {
-            const heading = $(this).find(".giveaway__heading__name");
+                function parseHeading(): IParsedPageHeading {
+                    const heading = $(this).find(".giveaway__heading__name");
 
-            const name = heading.text();
-            const giftId = heading.attr("href").match(/(?<=giveaway\/).*?(?=\/)/)[0];
-            const cost = parseInt($(this).find(".giveaway__heading__thin").text().match(/[0-9]+(?=P)/)[0]);
-            const steamStorePageUrl = $(this).find(".giveaway__icon").attr("href");
-            const steamReviewApiUrl = steamStorePageUrl.substring(0, steamStorePageUrl.indexOf("?"))
-                .replace("app", "appreviews") + "?json=1&num_per_page=0&purchase_type=all&cursor=*&language=all";
-            const isBundle = steamStorePageUrl.startsWith("https://store.steampowered.com/sub/");
+                    const name = heading.text();
+                    const giftId = heading.attr("href").match(/(?<=giveaway\/).*?(?=\/)/)[0];
+                    const cost = parseInt($(this).find(".giveaway__heading__thin").text().match(/[0-9]+(?=P)/)[0]);
+                    const steamStorePageUrl = $(this).find(".giveaway__icon").attr("href");
+                    const steamReviewApiUrl = steamStorePageUrl.substring(0, steamStorePageUrl.indexOf("?"))
+                        .replace("app", "appreviews") + "?json=1&num_per_page=0&purchase_type=all&cursor=*&language=all";
+                    const isBundle = steamStorePageUrl.startsWith("https://store.steampowered.com/sub/");
 
-            return {name, giftId, cost, steamUrl: steamReviewApiUrl, isBundle};
-        }
+                    return {name, giftId, cost, steamUrl: steamReviewApiUrl, isBundle};
+                }
+            })
+            .catch(() => {
+                logger.error(`Failed to fetch page content.`)
+                return {isLastPage: true, pointsLeft: 0, gameList: [], pinnedGameList: []};
+            })
     }
 
     logReviewedGames({rejected, accepted}: {accepted: Array<IGame>; rejected: Array<IGame>}, pinned: boolean) {
@@ -159,7 +166,8 @@ export class SteamGifts implements ISteamgiftsService {
                 const info = response.type ?? response.msg;
                 if (info.includes("Previously Won")) this.ignoredGames.push(gameInfo.name);
                 logger.log(`${this.gameWithBoundary(gameInfo)} - ${info}`)
-            });
+            })
+            .catch(() => logger.error(`Failed to fetch - ${this.gameWithBoundary(gameInfo)}`));
     }
 }
 
