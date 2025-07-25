@@ -125,7 +125,7 @@ export class SteamGifts implements ISteamgiftsService {
                     return {name, giftId, cost, steamUrl: steamReviewApiUrl, isBundle};
                 }
             })
-            .catch(() => {
+            .catch((): IParsedPage => {
                 logger.error(`Failed to fetch page content.`)
                 return {isLastPage: true, pointsLeft: 0, gameList: [], pinnedGameList: []};
             })
