@@ -19,9 +19,9 @@ export class SteamGifts implements ISteamgiftsService {
     private page: {url: string, applyReviewFilter: boolean};
 
     constructor(
-        public readonly xsrfToken: string,
-        public readonly concurrency: number,
-        public readonly waitTime: number,
+        private readonly xsrfToken: string,
+        concurrency: number,
+        private readonly waitTime: number,
         private readonly pagesToVisit: Readonly<Array<{readonly url: string; readonly applyReviewFilter: boolean}>>,
         private readonly steamReviewsService: ISteamReviewsService,
         sessionId: string
@@ -34,8 +34,8 @@ export class SteamGifts implements ISteamgiftsService {
     // noinspection InfiniteRecursionJS
     public async run() {
         while (true) {
-            const shouldContinue = await this.handlePage();
-            if (!shouldContinue) break;
+            const giveawayPagesLeft = await this.processNextPage();
+            if (!giveawayPagesLeft) break;
         }
         await waitMs(this.waitTime);
         process.stdout.write("\n");
@@ -49,13 +49,21 @@ export class SteamGifts implements ISteamgiftsService {
         this.checkedPinned = false;
     }
 
-    async handlePage(): Promise<boolean> {
+    async processNextPage(): Promise<boolean> {
         if (!this.page) {
-            logger.log("No more giveaways available.")
-            return this.reset(), false;
+            logger.log("No more giveaways available.");
+            this.reset();
+            return false;
         }
 
-        const {isLastPage, pointsLeft, gameList, pinnedGameList} = await this.getPageContent();
+        const {isLastPage, pointsLeft, gameList, pinnedGameList, error} = await this.getPageContent();
+        if (error) {
+            logger.error(error);
+            this.reset();
+            return false;
+        }
+
+        logger.log(`Points left: ${pointsLeft}`);
         const gameReviews = await Promise.all([...pinnedGameList, ...gameList].map((gameInfo) => {
             return this.limit(() => this.steamReviewsService.getReview(gameInfo).then((reviewSummary) => ({...gameInfo, reviewSummary})))
         }));
@@ -125,10 +133,13 @@ export class SteamGifts implements ISteamgiftsService {
                     return {name, giftId, cost, steamUrl: steamReviewApiUrl, isBundle};
                 }
             })
-            .catch((): IParsedPage => {
-                logger.error(`Failed to fetch page content.`)
-                return {isLastPage: true, pointsLeft: 0, gameList: [], pinnedGameList: []};
-            })
+            .catch((): IParsedPage => ({
+                isLastPage: true,
+                pointsLeft: 0,
+                gameList: [],
+                pinnedGameList: [],
+                error: "Failed to fetch page content."
+            }))
     }
 
     logReviewedGames({rejected, accepted}: {accepted: Array<IGame>; rejected: Array<IGame>}, pinned: boolean) {

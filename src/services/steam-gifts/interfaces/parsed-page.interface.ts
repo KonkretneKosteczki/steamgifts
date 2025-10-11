@@ -5,4 +5,5 @@ export interface IParsedPage {
     pinnedGameList: Array<IParsedPageHeading>;
     isLastPage: boolean;
     pointsLeft: number;
+    error?: string;
 }
