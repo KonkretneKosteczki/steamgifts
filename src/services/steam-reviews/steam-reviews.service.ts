@@ -10,7 +10,8 @@ export class SteamReviewsService implements ISteamReviewsService {
 
     constructor(
         public readonly positiveReviewsLowerBoundary: number,
-        reviewLowerBoundaryConfidence: number
+        reviewLowerBoundaryConfidence: number,
+        private readonly removedGames: boolean
     ) {
         this.lowerBoundary = lowerBoundConfidence(reviewLowerBoundaryConfidence);
     }
@@ -41,13 +42,15 @@ export class SteamReviewsService implements ISteamReviewsService {
                     total_positive: data.query_summary.total_positive
                 }
             })
-            .catch(() => ({total_reviews: 0, total_positive: 0})); // game removed or never added to the steam store;
+            .catch(() =>
+                this.removedGames
+                    ? {total_reviews: 1000, total_positive: 1000}
+                    : {total_reviews: 0, total_positive: 0}
+            );
     }
 
-    public gameReviewFilter<T extends {reviewSummary: IGameReviewsSummary}>(
-        gameList: Array<T>,
-        pinned: boolean
-    ): {accepted: Array<T & {lowerBoundary: number}>, rejected: Array<T & {lowerBoundary: number}>} {
+    public gameReviewFilter<T extends {reviewSummary: IGameReviewsSummary}>(gameList: Array<T>):
+        {accepted: Array<T & {lowerBoundary: number}>, rejected: Array<T & {lowerBoundary: number}>} {
         return gameList.reduce((lists, game) => {
             const {reviewSummary: {total_positive, total_reviews}} = game;
             const lowerBoundary = this.lowerBoundary(total_positive, total_reviews);
