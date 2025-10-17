@@ -11,6 +11,7 @@ const sg = new SteamGifts(
         config.positiveReviewsLowerBoundary,
         config.reviewLowerBoundaryConfidence,
         config.removedGames,
+        config.reviewCacheCheckPeriod,
     ),
     config.sessionId
 );

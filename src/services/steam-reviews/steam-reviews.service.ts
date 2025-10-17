@@ -2,38 +2,44 @@ import fetch from "node-fetch";
 import {IGameReviewsSummary, ISteamReviewsService,IBaseGameInfo} from "./interfaces";
 import {instanceOfIAppReview} from "./validators";
 import {LowerBoundConfidence, lowerBoundConfidence} from "@utils/lower-boundary";
+import * as NodeCache from "node-cache";
 
 export class SteamReviewsService implements ISteamReviewsService {
     // keeping value as a promise so that multiple concurrent calls for the same game will only trigger one API call
-    private reviewCacheDictionary: Record<string, Promise<IGameReviewsSummary>> = {};
+    private readonly reviewCacheDictionary: NodeCache;
     private readonly lowerBoundary: LowerBoundConfidence;
 
     constructor(
         public readonly positiveReviewsLowerBoundary: number,
         reviewLowerBoundaryConfidence: number,
-        private readonly removedGames: boolean
+        private readonly removedGames: boolean,
+        reviewCacheCheckPeriod?: number,
+        stdTTL?: number,
     ) {
+        this.reviewCacheDictionary = new NodeCache({
+            stdTTL,
+            checkperiod: reviewCacheCheckPeriod,
+            useClones: false
+        });
         this.lowerBoundary = lowerBoundConfidence(reviewLowerBoundaryConfidence);
     }
 
-    public clearCache() {
-        this.reviewCacheDictionary = {};
+    public forceClearCache() {
+        this.reviewCacheDictionary.flushAll();
     }
 
-    public getReview(game: IBaseGameInfo): Promise<IGameReviewsSummary> {
-        const {name} = game;
-
+    public getReview({name, isBundle, steamUrl}: IBaseGameInfo): Promise<IGameReviewsSummary> {
         // One cannot review a game bundle on steam, so bundles are interpreted as games with high positive review count
-        const reviewSummary = this.reviewCacheDictionary[name] ?? 
-              (game.isBundle
+        const reviewSummary = this.reviewCacheDictionary.get<Promise<IGameReviewsSummary>>(name) ??
+              (isBundle
                 ? Promise.resolve({total_positive: 2000, total_reviews: 2000})
-                : this.getReviewSummary(game.steamUrl));
-        this.reviewCacheDictionary[name] = reviewSummary;
+                : this.getReviewSummary(steamUrl));
+        this.reviewCacheDictionary.set<Promise<IGameReviewsSummary>>(name, reviewSummary);
         return reviewSummary;
     }
 
-    private getReviewSummary(steamUrl: string): Promise<IGameReviewsSummary> {
-        return fetch(steamUrl)
+    private getReviewSummary =
+        (steamUrl: string): Promise<IGameReviewsSummary> => fetch(steamUrl)
             .then((res) => res.json())
             .then((data) => {
                 if (!instanceOfIAppReview(data)) return {total_reviews: 0, total_positive: 0};
@@ -47,7 +53,6 @@ export class SteamReviewsService implements ISteamReviewsService {
                     ? {total_reviews: 1000, total_positive: 1000}
                     : {total_reviews: 0, total_positive: 0}
             );
-    }
 
     public gameReviewFilter<T extends {reviewSummary: IGameReviewsSummary}>(gameList: Array<T>):
         {accepted: Array<T & {lowerBoundary: number}>, rejected: Array<T & {lowerBoundary: number}>} {

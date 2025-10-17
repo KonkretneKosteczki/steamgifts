@@ -45,7 +45,6 @@ export class SteamGifts implements ISteamgiftsService {
     public reset() {
         this.page = this.pagesToVisit[0];
         this.pageNr = 0;
-        this.steamReviewsService.clearCache();
         this.checkedPinned = false;
     }
 

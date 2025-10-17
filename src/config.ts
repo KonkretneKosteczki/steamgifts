@@ -33,5 +33,7 @@ export const config = {
     reviewLowerBoundaryConfidence: 0.95,
 
     // delay in milliseconds between application cycles
-    waitTime: 1000 * 60 * 15
+    waitTime: 1000 * 60 * 15,
+    // delay in seconds between clearing the game review cache
+    reviewCacheCheckPeriod: 60 * 15 * 4,
 } as const;
