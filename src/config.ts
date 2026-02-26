@@ -8,8 +8,8 @@ export const config = {
     pagesToVisit: [
         {url: "https://www.steamgifts.com/giveaways/search?type=wishlist&page=", applyReviewFilter: false},
         {url: "https://www.steamgifts.com/giveaways/search?dlc=true&page=", applyReviewFilter: false},
-        {url: "https://www.steamgifts.com/giveaways/search?type=recommended&page=", applyReviewFilter: true},
         {url: "https://www.steamgifts.com/giveaways/search?copy_min=2&page=", applyReviewFilter: true},
+        {url: "https://www.steamgifts.com/giveaways/search?type=recommended&page=", applyReviewFilter: true},
         {url: "https://www.steamgifts.com/giveaways/search?page=", applyReviewFilter: true},
     ],
     // the pinned giveaways have review filter applied based on the PinnedGiveaways parameter

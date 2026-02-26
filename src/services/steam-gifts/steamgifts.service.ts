@@ -1,7 +1,6 @@
-import fetch from "node-fetch"
+import { Impit } from "impit";
 import {load as cheerioLoad} from "cheerio";
 import {logger} from "@utils/logger";
-import {URLSearchParams} from "url";
 import * as pLimit from "p-limit";
 import {waitMs} from "@utils/wait";
 import {ISteamReviewsService} from "../steam-reviews/interfaces";
@@ -11,7 +10,7 @@ import {instanceOfIEntryResponse} from "./validators";
 
 export class SteamGifts implements ISteamgiftsService {
     private readonly ignoredGames: Array<string> = []; // Previously won
-    private readonly headers: Record<string, string>;
+    private readonly impersonator: Impit;
     private readonly limit: pLimit.Limit;
 
     private checkedPinned: boolean = false;
@@ -26,7 +25,13 @@ export class SteamGifts implements ISteamgiftsService {
         private readonly steamReviewsService: ISteamReviewsService,
         sessionId: string
     ) {
-        this.headers = {cookie: "PHPSESSID=" + sessionId};
+        this.impersonator = new Impit({
+            browser: "firefox",
+            http3: true,
+            ignoreTlsErrors: true,
+            followRedirects: true,
+            headers: {cookie: "PHPSESSID=" + sessionId}
+        });
         this.page = this.pagesToVisit[0];
         this.limit = pLimit(concurrency);
     }
@@ -55,13 +60,14 @@ export class SteamGifts implements ISteamgiftsService {
             return false;
         }
 
-        const {isLastPage, pointsLeft, gameList, pinnedGameList, error} = await this.getPageContent();
+        const {isLastPage, hasWonAGame, pointsLeft, gameList, pinnedGameList, error} = await this.getPageContent();
         if (error) {
             logger.error(error);
             this.reset();
             return false;
         }
 
+        if (hasWonAGame) logger.log("HAS WON A GAME!!!")
         logger.log(`Points left: ${pointsLeft}`);
         const gameReviews = await Promise.all([...pinnedGameList, ...gameList].map((gameInfo) => {
             return this.limit(() => this.steamReviewsService.getReview(gameInfo).then((reviewSummary) => ({...gameInfo, reviewSummary})))
@@ -104,7 +110,7 @@ export class SteamGifts implements ISteamgiftsService {
         const currentUrl = this.page.url + ++this.pageNr;
         logger.log(currentUrl, "Visited.");
 
-        return fetch(currentUrl, {headers: this.headers})
+        return this.impersonator.fetch(currentUrl)
             .then((res) => res.text())
             .then((htmlBody) => {
                 const $ = cheerioLoad(htmlBody);
@@ -116,7 +122,9 @@ export class SteamGifts implements ISteamgiftsService {
                 const isLastPage = !Boolean($(`[data-page-number="${this.pageNr + 1}"]`).length);
                 const pointsLeft = Number($("span.nav__points").text());
 
-                return {gameList, pinnedGameList, isLastPage, pointsLeft};
+                const hasWonAGame = $(`a.nav__button[title="Giveaways Won"] > div.nav__notification`).length > 0;
+
+                return {gameList, pinnedGameList, isLastPage, pointsLeft, hasWonAGame};
 
                 function parseHeading(): IParsedPageHeading {
                     const heading = $(this).find(".giveaway__heading__name");
@@ -134,6 +142,7 @@ export class SteamGifts implements ISteamgiftsService {
             })
             .catch((): IParsedPage => ({
                 isLastPage: true,
+                hasWonAGame: false,
                 pointsLeft: 0,
                 gameList: [],
                 pinnedGameList: [],
@@ -142,13 +151,13 @@ export class SteamGifts implements ISteamgiftsService {
     }
 
     logReviewedGames({rejected, accepted}: {accepted: Array<IGame>; rejected: Array<IGame>}, pinned: boolean) {
-        if (rejected.length) logger.log(`${pinned ? "Pinned " : ""}Rejected - ${rejected.map(this.gameWithBoundary).join(", ")}`);
-        if (accepted.length) logger.log(`${pinned ? "Pinned " : ""}Accepted - ${accepted.map(this.gameWithBoundary).join(", ")}`);
+        if (rejected.length) logger.log(`${pinned ? "Pinned " : ""}Rejected - ${rejected.map(this.gameWithBoundaryToString).join(", ")}`);
+        if (accepted.length) logger.log(`${pinned ? "Pinned " : ""}Accepted - ${accepted.map(this.gameWithBoundaryToString).join(", ")}`);
     }
 
-    gameWithBoundary({name, lowerBoundary}: IGame): string {
-        // no boundary calculated for wishlist games thus ignored
-        return lowerBoundary ? `${name}(${lowerBoundary.toFixed(2)})` : name;
+    gameWithBoundaryToString({name, lowerBoundary}: IGame): string {
+        // perfect 1 boundary only for pages without a filter, thus logged in different way (ex. wishlist, dlc, pinned)
+        return `${name}(${lowerBoundary === 1 ? "★" : lowerBoundary.toFixed(2)})`;
     }
 
     private static * gamePointsFilterGenerator(allGames: Array<IGame>, maxPoints: number): Generator<IGame, void, void> {
@@ -163,21 +172,20 @@ export class SteamGifts implements ISteamgiftsService {
     }
 
     private enterGiveaway(gameInfo: IGame): Promise<void> {
-        const body = new URLSearchParams({
-            xsrf_token: this.xsrfToken,
-            do: "entry_insert",
-            code: gameInfo.giftId
-        });
+        const body = new FormData();
+        body.append("xsrf_token", this.xsrfToken);
+        body.append("do", "entry_insert");
+        body.append("code", gameInfo.giftId);
 
-        return fetch("https://www.steamgifts.com/ajax.php", {method: "POST", body, headers: this.headers})
-            .then(res => res.json())
+        return this.impersonator.fetch("https://www.steamgifts.com/ajax.php", {method: "POST", body,})
+            .then((res) => res.json())
             .then((response: unknown) => {
                 if (!instanceOfIEntryResponse(response)) return;
                 const info = response.type ?? response.msg;
                 if (info.includes("Previously Won")) this.ignoredGames.push(gameInfo.name);
-                logger.log(`${this.gameWithBoundary(gameInfo)} - ${info}`)
+                logger.log(`${this.gameWithBoundaryToString(gameInfo)} - ${info}`)
             })
-            .catch(() => logger.error(`Failed to fetch - ${this.gameWithBoundary(gameInfo)}`));
+            .catch(() => logger.error(`Failed to fetch - ${this.gameWithBoundaryToString(gameInfo)}`));
     }
 }
 
