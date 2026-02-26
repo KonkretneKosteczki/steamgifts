@@ -1,11 +1,13 @@
 import * as path from "path";
 import * as webpack from "webpack";
+import * as nodeExternals from "webpack-node-externals";
 
 module.exports = {
     target: "node",
     mode: "production",
     node: false,
     entry: "./src/index.ts",
+    externals: [nodeExternals()],
     output: {
         path: path.resolve(__dirname, "dist"),
         filename: "index.js",
