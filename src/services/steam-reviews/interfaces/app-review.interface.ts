@@ -1,6 +1,8 @@
 export interface IAppReview {
-    query_summary: {
-        total_positive: number,
-        total_reviews: number
+    response: {
+        query_summary: {
+            total_positive: number,
+            total_reviews: number
+        }
     }
 }

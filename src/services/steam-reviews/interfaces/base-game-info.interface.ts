@@ -1,5 +1,5 @@
 export interface IBaseGameInfo {
     name: string;
-    steamUrl: string;
+    appId: string;
     isBundle: boolean;
 }

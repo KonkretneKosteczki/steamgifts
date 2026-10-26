@@ -1,7 +1,7 @@
 import fetch from "node-fetch";
-import {IGameReviewsSummary, ISteamReviewsService,IBaseGameInfo} from "./interfaces";
+import type {IGameReviewsSummary, ISteamReviewsService, IBaseGameInfo} from "./interfaces";
 import {instanceOfIAppReview} from "./validators";
-import {LowerBoundConfidence, lowerBoundConfidence} from "@utils/lower-boundary";
+import {type LowerBoundConfidence, lowerBoundConfidence} from "@utils/lower-boundary";
 import * as NodeCache from "node-cache";
 
 export class SteamReviewsService implements ISteamReviewsService {
@@ -28,24 +28,30 @@ export class SteamReviewsService implements ISteamReviewsService {
         this.reviewCacheDictionary.flushAll();
     }
 
-    public getReview({name, isBundle, steamUrl}: IBaseGameInfo): Promise<IGameReviewsSummary> {
-        // One cannot review a game bundle on steam, so bundles are interpreted as games with high positive review count
-        const reviewSummary = this.reviewCacheDictionary.get<Promise<IGameReviewsSummary>>(name) ??
-              (isBundle
-                ? Promise.resolve({total_positive: 2000, total_reviews: 2000})
-                : this.getReviewSummary(steamUrl));
-        this.reviewCacheDictionary.set<Promise<IGameReviewsSummary>>(name, reviewSummary);
-        return reviewSummary;
-    }
+    public getReviewV2({name, isBundle, appId}: IBaseGameInfo): Promise<IGameReviewsSummary> {
+        if (isBundle) return Promise.resolve({total_positive: 2000, total_reviews: 2000});
 
-    private getReviewSummary =
-        (steamUrl: string): Promise<IGameReviewsSummary> => fetch(steamUrl)
+        const cachedReviews = this.reviewCacheDictionary.get<Promise<IGameReviewsSummary>>(name);
+        if (cachedReviews) return cachedReviews;
+
+        const baseUrl = "https://api.steampowered.com/IUserReviewsService/GetAppReviews/v1/";
+        const queryParams = new URLSearchParams({
+            input_json: JSON.stringify({
+                appid: appId,
+                filter: "all",
+                language: "all",
+                purchase_type: "all",
+                num_per_page: 0 // only interested in total amount of reviews not actual content
+            })
+        });
+
+        return fetch(`${baseUrl}?${queryParams.toString()}`)
             .then((res) => res.json())
             .then((data) => {
                 if (!instanceOfIAppReview(data)) return {total_reviews: 0, total_positive: 0};
                 return {
-                    total_reviews: data.query_summary.total_reviews,
-                    total_positive: data.query_summary.total_positive
+                    total_reviews: data.response.query_summary.total_reviews,
+                    total_positive: data.response.query_summary.total_positive
                 }
             })
             .catch(() =>
@@ -53,6 +59,7 @@ export class SteamReviewsService implements ISteamReviewsService {
                     ? {total_reviews: 1000, total_positive: 1000}
                     : {total_reviews: 0, total_positive: 0}
             );
+    }
 
     public gameReviewFilter<T extends {reviewSummary: IGameReviewsSummary}>(gameList: Array<T>):
         {accepted: Array<T & {lowerBoundary: number}>, rejected: Array<T & {lowerBoundary: number}>} {

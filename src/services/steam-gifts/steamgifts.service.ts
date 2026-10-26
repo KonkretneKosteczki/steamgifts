@@ -70,7 +70,7 @@ export class SteamGifts implements ISteamgiftsService {
         if (hasWonAGame) logger.log("HAS WON A GAME!!!")
         logger.log(`Points left: ${pointsLeft}`);
         const gameReviews = await Promise.all([...pinnedGameList, ...gameList].map((gameInfo) => {
-            return this.limit(() => this.steamReviewsService.getReview(gameInfo).then((reviewSummary) => ({...gameInfo, reviewSummary})))
+            return this.limit(() => this.steamReviewsService.getReviewV2(gameInfo).then((reviewSummary) => ({...gameInfo, reviewSummary})))
         }));
 
         const pinnedGameReviews = gameReviews.slice(0, pinnedGameList.length);
@@ -133,11 +133,13 @@ export class SteamGifts implements ISteamgiftsService {
                     const giftId = heading.attr("href").match(/(?<=giveaway\/).*?(?=\/)/)[0];
                     const cost = parseInt($(this).find(".giveaway__heading__thin").text().match(/[0-9]+(?=P)/)[0]);
                     const steamStorePageUrl = $(this).find(".giveaway__icon").attr("href");
-                    const steamReviewApiUrl = steamStorePageUrl.substring(0, steamStorePageUrl.indexOf("?"))
-                        .replace("app", "appreviews") + "?json=1&num_per_page=0&purchase_type=all&cursor=*&language=all";
                     const isBundle = steamStorePageUrl.startsWith("https://store.steampowered.com/sub/");
+                    const appId = steamStorePageUrl.substring(
+                        steamStorePageUrl.lastIndexOf("/") + 1,
+                        steamStorePageUrl.indexOf("?")
+                    );
 
-                    return {name, giftId, cost, steamUrl: steamReviewApiUrl, isBundle};
+                    return {name, giftId, cost, appId, isBundle};
                 }
             })
             .catch((): IParsedPage => ({
